@@ -25,20 +25,38 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
         _pipelineOptions.EventStarting += EventStarting;
         _pipelineOptions.EventCompleted += EventCompleted;
 
+        _pipelineOptions.TransactionScopeStarting += TransactionScopeStarting;
+        _pipelineOptions.Optimized += Optimized;
+
+        return Task.CompletedTask;
+    }
+
+    private Task Optimized(PipelineOptimizationEventArgs eventArgs, CancellationToken cancellationToken)
+    {
+        _logger.LogTrace("[PipelineOptimization] : pipeline = {Pipeline} / {Optimization}", eventArgs.Pipeline.GetType().FullName, eventArgs.Optimization);
+        return Task.CompletedTask;
+    }
+
+    private Task TransactionScopeStarting(TransactionScopeEventArgs eventArgs, CancellationToken cancellationToken)
+    {
+        _logger.LogTrace("[TransactionScopeStarting] : pipeline = {Pipeline} / stage name = {StageName} / managed thread id = {CurrentManagedThreadId}", eventArgs.Pipeline.GetType().FullName, eventArgs.Pipeline.StageName, Environment.CurrentManagedThreadId);
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _pipelineOptions.PipelineCreated += PipelineCreated;
-        _pipelineOptions.PipelineObtained += PipelineObtained;
-        _pipelineOptions.PipelineStarting += PipelineStarting;
-        _pipelineOptions.PipelineCompleted += PipelineCompleted;
-        _pipelineOptions.PipelineReleased += PipelineReleased;
-        _pipelineOptions.StageStarting += StageStarting;
-        _pipelineOptions.StageCompleted += StageCompleted;
-        _pipelineOptions.EventStarting += EventStarting;
-        _pipelineOptions.EventCompleted += EventCompleted;
+        _pipelineOptions.PipelineCreated -= PipelineCreated;
+        _pipelineOptions.PipelineObtained -= PipelineObtained;
+        _pipelineOptions.PipelineStarting -= PipelineStarting;
+        _pipelineOptions.PipelineCompleted -= PipelineCompleted;
+        _pipelineOptions.PipelineReleased -= PipelineReleased;
+        _pipelineOptions.StageStarting -= StageStarting;
+        _pipelineOptions.StageCompleted -= StageCompleted;
+        _pipelineOptions.EventStarting -= EventStarting;
+        _pipelineOptions.EventCompleted -= EventCompleted;
+
+        _pipelineOptions.TransactionScopeStarting -= TransactionScopeStarting;
+        _pipelineOptions.Optimized -= Optimized;
 
         return Task.CompletedTask;
     }
