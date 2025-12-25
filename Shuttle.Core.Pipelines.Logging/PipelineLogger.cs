@@ -155,7 +155,7 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
             return;
         }
 
-        await TraceEventAsync(eventArgs, nameof(StageCompleted));
+        await TraceStageAsync(eventArgs, nameof(StageCompleted));
     }
 
     private async Task StageStarting(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
@@ -165,7 +165,7 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
             return;
         }
 
-        await TraceEventAsync(eventArgs, nameof(StageStarting));
+        await TraceStageAsync(eventArgs, nameof(StageStarting));
     }
 
     protected async Task TraceEventAsync(PipelineEventArgs eventArgs, string eventName)
