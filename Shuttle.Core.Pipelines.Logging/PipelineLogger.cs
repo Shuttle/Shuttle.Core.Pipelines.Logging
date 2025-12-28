@@ -8,6 +8,7 @@ namespace Shuttle.Core.Pipelines.Logging;
 public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOptions> pipelineOptions, IOptions<PipelineLoggingOptions> pipelineLoggingOptions)
     : IHostedService
 {
+    private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly Dictionary<string, int> _callCounts = new();
     private readonly ILogger<PipelineLogger> _logger = Guard.AgainstNull(logger);
     private readonly PipelineLoggingOptions _pipelineLoggingOptions = Guard.AgainstNull(Guard.AgainstNull(pipelineLoggingOptions).Value);
@@ -81,10 +82,19 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
         await TraceEventAsync(eventArgs, nameof(EventStarting));
     }
 
-    private void Increment(string key)
+    private async Task IncrementAsync(string key)
     {
-        _callCounts.TryAdd(key, 0);
-        _callCounts[key] += 1;
+        await _lock.WaitAsync();
+
+        try
+        {
+            _callCounts.TryAdd(key, 0);
+            _callCounts[key] += 1;
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
     private async Task PipelineCompleted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
@@ -191,7 +201,7 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
         var eventTypeName = eventArgs.Pipeline.EventType?.FullName ?? "unknown";
         var key = $"{eventName}:{eventTypeName}";
 
-        Increment(key);
+        await IncrementAsync(key);
 
         _logger.LogTrace("[{EventName}:{EventTypeName}] : pipeline = {Pipeline} / call count = {CallCount} / managed thread id = {CurrentManagedThreadId}", eventName, eventTypeName, eventArgs.Pipeline.GetType().FullName, _callCounts[key], Environment.CurrentManagedThreadId);
 
@@ -203,7 +213,7 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
         var pipelineTypeName = eventArgs.Pipeline.GetType().FullName;
         var key = $"{eventName}:{pipelineTypeName}";
 
-        Increment(key);
+        await IncrementAsync(key);
 
         _logger.LogTrace("[{EventName}] : pipeline = {Pipeline} / call count = {CallCount} / managed thread id = {CurrentManagedThreadId}", eventName, pipelineTypeName, _callCounts[key], Environment.CurrentManagedThreadId);
 
@@ -221,7 +231,7 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
 
         var key = $"{eventName}:{stageName}";
 
-        Increment(key);
+        await IncrementAsync(key);
 
         _logger.LogTrace("[{EventName}:{StageName}] : pipeline = {Pipeline} / call count = {CallCount} / managed thread id = {CurrentManagedThreadId}", eventName, stageName, eventArgs.Pipeline.GetType().FullName, _callCounts[key], Environment.CurrentManagedThreadId);
 
