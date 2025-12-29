@@ -17,10 +17,8 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _pipelineOptions.PipelineCreated += PipelineCreated;
-        _pipelineOptions.PipelineObtained += PipelineObtained;
         _pipelineOptions.PipelineStarting += PipelineStarting;
         _pipelineOptions.PipelineCompleted += PipelineCompleted;
-        _pipelineOptions.PipelineReleased += PipelineReleased;
         _pipelineOptions.StageStarting += StageStarting;
         _pipelineOptions.StageCompleted += StageCompleted;
         _pipelineOptions.EventStarting += EventStarting;
@@ -47,10 +45,8 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
     public Task StopAsync(CancellationToken cancellationToken)
     {
         _pipelineOptions.PipelineCreated -= PipelineCreated;
-        _pipelineOptions.PipelineObtained -= PipelineObtained;
         _pipelineOptions.PipelineStarting -= PipelineStarting;
         _pipelineOptions.PipelineCompleted -= PipelineCompleted;
-        _pipelineOptions.PipelineReleased -= PipelineReleased;
         _pipelineOptions.StageStarting -= StageStarting;
         _pipelineOptions.StageCompleted -= StageCompleted;
         _pipelineOptions.EventStarting -= EventStarting;
