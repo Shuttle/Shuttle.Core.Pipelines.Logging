@@ -16,6 +16,7 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
+        _pipelineOptions.PipelineAborted += PipelineAborted;
         _pipelineOptions.PipelineCreated += PipelineCreated;
         _pipelineOptions.PipelineStarting += PipelineStarting;
         _pipelineOptions.PipelineCompleted += PipelineCompleted;
@@ -44,6 +45,7 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
+        _pipelineOptions.PipelineAborted -= PipelineAborted;
         _pipelineOptions.PipelineCreated -= PipelineCreated;
         _pipelineOptions.PipelineStarting -= PipelineStarting;
         _pipelineOptions.PipelineCompleted -= PipelineCompleted;
@@ -93,6 +95,16 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
         }
     }
 
+    private async Task PipelineAborted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
+    {
+        if (await ShouldSkipPipelineAsync(eventArgs, nameof(PipelineCompleted), cancellationToken))
+        {
+            return;
+        }
+
+        await TracePipelineAsync(eventArgs, nameof(PipelineCompleted));
+    }
+
     private async Task PipelineCompleted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
         if (await ShouldSkipPipelineAsync(eventArgs, nameof(PipelineCompleted), cancellationToken))
@@ -111,26 +123,6 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
         }
 
         await TracePipelineAsync(eventArgs, nameof(PipelineCreated));
-    }
-
-    private async Task PipelineObtained(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
-    {
-        if (await ShouldSkipPipelineAsync(eventArgs, nameof(PipelineObtained), cancellationToken))
-        {
-            return;
-        }
-
-        await TracePipelineAsync(eventArgs, nameof(PipelineObtained));
-    }
-
-    private async Task PipelineReleased(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
-    {
-        if (await ShouldSkipPipelineAsync(eventArgs, nameof(PipelineReleased), cancellationToken))
-        {
-            return;
-        }
-
-        await TracePipelineAsync(eventArgs, nameof(PipelineReleased));
     }
 
     private async Task PipelineStarting(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
