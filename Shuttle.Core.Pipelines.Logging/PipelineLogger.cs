@@ -25,22 +25,20 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
         _pipelineOptions.EventStarting += EventStarting;
         _pipelineOptions.EventCompleted += EventCompleted;
 
+        _pipelineOptions.TransactionScopeIgnored += TransactionScopeIgnored;
         _pipelineOptions.TransactionScopeStarting += TransactionScopeStarting;
-        _pipelineOptions.Optimized += Optimized;
 
         return Task.CompletedTask;
     }
 
-    private Task Optimized(PipelineOptimizationEventArgs eventArgs, CancellationToken cancellationToken)
+    private async Task TransactionScopeIgnored(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        _logger.LogTrace("[PipelineOptimization] : pipeline = {Pipeline} / {Optimization}", eventArgs.Pipeline.GetType().FullName, eventArgs.Optimization);
-        return Task.CompletedTask;
+        await TraceAsync(eventArgs, cancellationToken);
     }
 
-    private Task TransactionScopeStarting(TransactionScopeEventArgs eventArgs, CancellationToken cancellationToken)
+    private async Task TransactionScopeStarting(TransactionScopeEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        _logger.LogTrace("[TransactionScopeStarting] : pipeline = {Pipeline} / stage name = {StageName} / managed thread id = {CurrentManagedThreadId}", eventArgs.Pipeline.GetType().FullName, eventArgs.Pipeline.StageName, Environment.CurrentManagedThreadId);
-        return Task.CompletedTask;
+        await TraceAsync(eventArgs, cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
@@ -54,30 +52,20 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
         _pipelineOptions.EventStarting -= EventStarting;
         _pipelineOptions.EventCompleted -= EventCompleted;
 
+        _pipelineOptions.TransactionScopeIgnored -= TransactionScopeIgnored;
         _pipelineOptions.TransactionScopeStarting -= TransactionScopeStarting;
-        _pipelineOptions.Optimized -= Optimized;
 
         return Task.CompletedTask;
     }
 
     private async Task EventCompleted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        if (await ShouldSkipEventAsync(eventArgs, nameof(EventStarting), cancellationToken))
-        {
-            return;
-        }
-
-        await TraceEventAsync(eventArgs, nameof(EventCompleted));
+        await TraceAsync(eventArgs, cancellationToken);
     }
 
     private async Task EventStarting(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        if (await ShouldSkipEventAsync(eventArgs, nameof(EventStarting), cancellationToken))
-        {
-            return;
-        }
-
-        await TraceEventAsync(eventArgs, nameof(EventStarting));
+        await TraceAsync(eventArgs, cancellationToken);
     }
 
     private async Task IncrementAsync(string key)
@@ -97,131 +85,71 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
 
     private async Task PipelineAborted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        if (await ShouldSkipPipelineAsync(eventArgs, nameof(PipelineCompleted), cancellationToken))
-        {
-            return;
-        }
-
-        await TracePipelineAsync(eventArgs, nameof(PipelineCompleted));
+        await TraceAsync(eventArgs, cancellationToken);
     }
 
     private async Task PipelineCompleted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        if (await ShouldSkipPipelineAsync(eventArgs, nameof(PipelineCompleted), cancellationToken))
-        {
-            return;
-        }
-
-        await TracePipelineAsync(eventArgs, nameof(PipelineCompleted));
+        await TraceAsync(eventArgs, cancellationToken);
     }
 
     private async Task PipelineCreated(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        if (await ShouldSkipPipelineAsync(eventArgs, nameof(PipelineCreated), cancellationToken))
-        {
-            return;
-        }
-
-        await TracePipelineAsync(eventArgs, nameof(PipelineCreated));
+        await TraceAsync(eventArgs, cancellationToken);
     }
 
     private async Task PipelineStarting(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        if (await ShouldSkipPipelineAsync(eventArgs, nameof(PipelineStarting), cancellationToken))
-        {
-            return;
-        }
-
-        await TracePipelineAsync(eventArgs, nameof(PipelineStarting));
+        await TraceAsync(eventArgs, cancellationToken);
     }
 
-    private async ValueTask<bool> ShouldSkipAsync(PipelineEventArgs eventArgs, string eventName, string candidate, List<string> collection, CancellationToken cancellationToken)
+    private async Task StageCompleted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        var loggingEventArgs = new LoggingEventArgs(eventArgs, eventName);
+        await TraceAsync(eventArgs, cancellationToken);
+    }
+
+    private async Task StageStarting(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
+    {
+        await TraceAsync(eventArgs, cancellationToken);
+    }
+
+
+    protected async Task TraceAsync(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
+    {
+        var pipelineName = eventArgs.Pipeline.GetType().FullName;
+        var stageName = !string.IsNullOrWhiteSpace(eventArgs.Pipeline.StageName) ? eventArgs.Pipeline.StageName : "(no stage))";
+        var eventName = eventArgs.Pipeline.EventType?.FullName ?? "(no event)";
+
+        var loggingEventArgs = new LoggingEventArgs(eventArgs);
 
         await _pipelineLoggingOptions.Logging.InvokeAsync(loggingEventArgs, cancellationToken);
 
         if (loggingEventArgs.ShouldSkip)
         {
-            return true;
-        }
-
-        return collection.Any() && collection.All(type => type != candidate);
-    }
-
-    private async ValueTask<bool> ShouldSkipEventAsync(PipelineEventArgs eventArgs, string eventName, CancellationToken cancellationToken)
-    {
-        return await ShouldSkipAsync(eventArgs, eventName, eventArgs.Pipeline.EventType?.FullName ?? "unknown", _pipelineLoggingOptions.EventTypeFullNames, cancellationToken);
-    }
-
-    private async ValueTask<bool> ShouldSkipPipelineAsync(PipelineEventArgs eventArgs, string eventName, CancellationToken cancellationToken)
-    {
-        return await ShouldSkipAsync(eventArgs, eventName, Guard.AgainstEmpty(eventArgs.Pipeline.GetType().FullName), _pipelineLoggingOptions.PipelineTypeFullNames, cancellationToken);
-    }
-
-    private async ValueTask<bool> ShouldSkipStageAsync(PipelineEventArgs eventArgs, string eventName, CancellationToken cancellationToken)
-    {
-        return await ShouldSkipAsync(eventArgs, eventName, eventArgs.Pipeline.StageName, _pipelineLoggingOptions.StageNames, cancellationToken);
-    }
-
-    private async Task StageCompleted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
-    {
-        if (await ShouldSkipStageAsync(eventArgs, nameof(StageCompleted), cancellationToken))
-        {
             return;
         }
-
-        await TraceStageAsync(eventArgs, nameof(StageCompleted));
-    }
-
-    private async Task StageStarting(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
-    {
-        if (await ShouldSkipStageAsync(eventArgs, nameof(StageStarting), cancellationToken))
+    
+        if (_pipelineLoggingOptions.Filters.Any())
         {
-            return;
+            var filter = _pipelineLoggingOptions.Filters.FirstOrDefault(item => item.PipelineName.Equals(pipelineName, StringComparison.InvariantCultureIgnoreCase));
+
+            if (filter == null)
+            {
+                return;
+            }
+
+            if ((filter.StageNames.Any() && filter.StageNames.All(type => type != stageName)) ||
+                (filter.EventNames.Any() && filter.EventNames.All(type => type != eventName)))
+            {
+                return;
+            }
         }
 
-        await TraceStageAsync(eventArgs, nameof(StageStarting));
-    }
-
-    protected async Task TraceEventAsync(PipelineEventArgs eventArgs, string eventName)
-    {
-        var eventTypeName = eventArgs.Pipeline.EventType?.FullName ?? "unknown";
-        var key = $"{eventName}:{eventTypeName}";
+        var key = $"{pipelineName}:{stageName}:{eventName}";
 
         await IncrementAsync(key);
 
-        _logger.LogTrace("[{EventName}:{EventTypeName}] : pipeline = {Pipeline} / call count = {CallCount} / managed thread id = {CurrentManagedThreadId}", eventName, eventTypeName, eventArgs.Pipeline.GetType().FullName, _callCounts[key], Environment.CurrentManagedThreadId);
-
-        await Task.CompletedTask;
-    }
-
-    protected async Task TracePipelineAsync(PipelineEventArgs eventArgs, string eventName)
-    {
-        var pipelineTypeName = eventArgs.Pipeline.GetType().FullName;
-        var key = $"{eventName}:{pipelineTypeName}";
-
-        await IncrementAsync(key);
-
-        _logger.LogTrace("[{EventName}] : pipeline = {Pipeline} / call count = {CallCount} / managed thread id = {CurrentManagedThreadId}", eventName, pipelineTypeName, _callCounts[key], Environment.CurrentManagedThreadId);
-
-        await Task.CompletedTask;
-    }
-
-    protected async Task TraceStageAsync(PipelineEventArgs eventArgs, string eventName)
-    {
-        var stageName = eventArgs.Pipeline.StageName;
-
-        if (string.IsNullOrWhiteSpace(stageName))
-        {
-            stageName = "unknown";
-        }
-
-        var key = $"{eventName}:{stageName}";
-
-        await IncrementAsync(key);
-
-        _logger.LogTrace("[{EventName}:{StageName}] : pipeline = {Pipeline} / call count = {CallCount} / managed thread id = {CurrentManagedThreadId}", eventName, stageName, eventArgs.Pipeline.GetType().FullName, _callCounts[key], Environment.CurrentManagedThreadId);
+        _logger.LogTrace("[{EventTypeName}] : pipeline = '{Pipeline}' / stage = '{StageName}' / call count = {CallCount} / managed thread id = {CurrentManagedThreadId}", eventName, pipelineName, stageName, _callCounts[key], Environment.CurrentManagedThreadId);
 
         await Task.CompletedTask;
     }

@@ -5,11 +5,11 @@ namespace Shuttle.Core.Pipelines.Logging;
 
 public class PipelineLoggingBuilder(IServiceCollection services)
 {
-    public PipelineLoggingOptions Options
+    public PipelineLoggingBuilder Configure(Action<PipelineLoggingOptions> configure)
     {
-        get;
-        set => field = value ?? throw new ArgumentNullException(nameof(value));
-    } = new();
+        Services.Configure(configure);
+        return this;
+    }
 
     public IServiceCollection Services { get; } = Guard.AgainstNull(services);
 }

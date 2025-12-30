@@ -9,18 +9,11 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddPipelineLogging(Action<PipelineLoggingBuilder>? builder = null)
         {
+            services.AddOptions<PipelineLoggingOptions>();
+
             var pipelineLoggingBuilder = new PipelineLoggingBuilder(Guard.AgainstNull(services));
 
             builder?.Invoke(pipelineLoggingBuilder);
-
-            services.AddOptions<PipelineLoggingOptions>().Configure(options =>
-            {
-                options.PipelineTypeFullNames = pipelineLoggingBuilder.Options.PipelineTypeFullNames;
-                options.EventTypeFullNames = pipelineLoggingBuilder.Options.EventTypeFullNames;
-                options.StageNames = pipelineLoggingBuilder.Options.StageNames;
-
-                options.Logging = pipelineLoggingBuilder.Options.Logging;
-            });
 
             services.AddHostedService<PipelineLogger>();
 
