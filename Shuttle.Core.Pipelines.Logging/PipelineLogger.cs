@@ -33,12 +33,12 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
 
     private async Task TransactionScopeIgnored(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Ignored", cancellationToken);
     }
 
     private async Task TransactionScopeStarting(TransactionScopeEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Starting", cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
@@ -60,12 +60,12 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
 
     private async Task EventCompleted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Completed", cancellationToken);
     }
 
     private async Task EventStarting(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Starting", cancellationToken);
     }
 
     private async Task IncrementAsync(string key)
@@ -85,36 +85,36 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
 
     private async Task PipelineAborted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Aborted", cancellationToken);
     }
 
     private async Task PipelineCompleted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Completed", cancellationToken);
     }
 
     private async Task PipelineCreated(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Created", cancellationToken);
     }
 
     private async Task PipelineStarting(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Starting", cancellationToken);
     }
 
     private async Task StageCompleted(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Completed", cancellationToken);
     }
 
     private async Task StageStarting(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
     {
-        await TraceAsync(eventArgs, cancellationToken);
+        await TraceAsync(eventArgs, "Starting", cancellationToken);
     }
 
 
-    protected async Task TraceAsync(PipelineEventArgs eventArgs, CancellationToken cancellationToken)
+    protected async Task TraceAsync(PipelineEventArgs eventArgs, string eventState, CancellationToken cancellationToken)
     {
         var pipelineName = eventArgs.Pipeline.GetType().FullName;
         var stageName = !string.IsNullOrWhiteSpace(eventArgs.Pipeline.StageName) ? eventArgs.Pipeline.StageName : "(no stage))";
@@ -129,7 +129,7 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
             return;
         }
     
-        if (_pipelineLoggingOptions.Filters.Any())
+        if (_pipelineLoggingOptions.Filters.Count > 0)
         {
             var filter = _pipelineLoggingOptions.Filters.FirstOrDefault(item => item.PipelineName.Equals(pipelineName, StringComparison.InvariantCultureIgnoreCase));
 
@@ -138,8 +138,8 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
                 return;
             }
 
-            if ((filter.StageNames.Any() && filter.StageNames.All(type => type != stageName)) ||
-                (filter.EventNames.Any() && filter.EventNames.All(type => type != eventName)))
+            if ((filter.StageNames.Count > 0 && filter.StageNames.All(type => type != stageName)) ||
+                (filter.EventNames.Count > 0 && filter.EventNames.All(type => type != eventName)))
             {
                 return;
             }
@@ -149,7 +149,7 @@ public class PipelineLogger(ILogger<PipelineLogger> logger, IOptions<PipelineOpt
 
         await IncrementAsync(key);
 
-        _logger.LogTrace("[{EventTypeName}] : pipeline = '{Pipeline}' / stage = '{StageName}' / call count = {CallCount} / managed thread id = {CurrentManagedThreadId}", eventName, pipelineName, stageName, _callCounts[key], Environment.CurrentManagedThreadId);
+        _logger.LogTrace("[{EventName}] : pipeline = '{Pipeline}' / stage = '{StageName}' / call count = {CallCount} / managed thread id = {CurrentManagedThreadId}", $"{eventName}{(string.IsNullOrWhiteSpace(eventState) ? string.Empty : $"/{eventState}")}" , pipelineName, stageName, _callCounts[key], Environment.CurrentManagedThreadId);
 
         await Task.CompletedTask;
     }
