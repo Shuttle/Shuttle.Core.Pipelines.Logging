@@ -11,12 +11,12 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.1" />
-    <PackageReference Include="Shuttle.Core.Pipelines" Version="21.0.0-alpha" />
+    <PackageReference Include="Shuttle.Core.Pipelines" Version="21.0.1-beta" />
   </ItemGroup>
 
   <PropertyGroup>
     <Description>Non-intrusive pipeline logging.</Description>
-    <Version>21.0.0-alpha</Version>
+    <Version>21.0.1-beta</Version>
     <PackageProjectUrl>https://github.com/shuttle/Shuttle.Core.Pipelines.Logging</PackageProjectUrl>
     <RepositoryUrl>https://github.com/shuttle/Shuttle.Core.Pipelines.Logging.git</RepositoryUrl>
     <PackageTags>shuttle</PackageTags>
